@@ -9,6 +9,6 @@
     "typescript": "^5.9.3"
   },
   "scripts": {
-    "start": "npx ts-node api/index.ts"
+    "dev": "npx ts-node api/index.ts"
   }
 }

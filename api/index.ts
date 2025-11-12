@@ -1,50 +1,49 @@
-const {Server} = require("socket.io");
-import type { Socket } from "socket.io";
+import { Server, Socket } from "socket.io";
 import "dotenv/config";
 
-const origins = (process.env.ORIGIN ?? "")
+// Conexion desde el fronted
+const origins = (process.env.ORIGIN ?? "http://localhost:5173")
   .split(",")
   .map(s => s.trim())
   .filter(Boolean);
 
 const io = new Server({
   cors: {
-    origin: origins
-  }
+    origin: origins,
+    methods: ["GET", "POST"],
+  },
 });
 
-let onlineUsers: {socketId: string, userId: string}[] = [];
+let onlineUsers: { socketId: string; userId: string }[] = [];
 
+// Conexion de cliente
 io.on("connection", (socket: Socket) => {
-  console.log(
-    "A user connected with id: ", 
-    socket.id, 
-    " there are now ", 
-    onlineUsers.length, 
-    " online users");
+  console.log(`User connected: ${socket.id}`);
 
+  // Nuevo usuario
+  socket.on("newUser", (userId: string) => {
+    if (!onlineUsers.some(user => user.userId === userId) && userId !== "") {
+      onlineUsers.push({ socketId: socket.id, userId });
+      console.log(`New user: ${userId}`);
+      io.emit("usersOnline", onlineUsers);
+    }
+  });
 
+  // Mensajes
+  socket.on("sendMessage", (messageData) => {
+    console.log(" Message received:", messageData);
+    io.emit("receiveMessage", messageData);
+  });
 
-    socket.on("newUser", (userId: string) => {
-      if (!onlineUsers.some(user => user.userId === userId) && userId !== "") {
-        onlineUsers.push({ socketId: socket.id, userId });
-        socket.emit("usersOnline", onlineUsers);
-      }
-    });
-
-
-    socket.on("disconnect", () => {
-      onlineUsers = onlineUsers.filter(user => user.socketId !== socket.id);
-      socket.emit("usersOnline", onlineUsers);
-    });
+  // Desconexion
+  socket.on("disconnect", () => {
+    onlineUsers = onlineUsers.filter(user => user.socketId !== socket.id);
+    io.emit("usersOnline", onlineUsers);
+    console.log(`User disconnected: ${socket.id}`);
+  });
 });
 
-const port = Number(process.env.PORT);
-
+// Servidor
+const port = Number(process.env.PORT) || 3000;
 io.listen(port);
-console.log(`Server is running on port ${port}`);
-
-
-
-
-
+console.log(`server running on port ${port}`);
